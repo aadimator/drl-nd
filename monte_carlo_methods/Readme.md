@@ -67,16 +67,16 @@ for i_episode in range(3):
             break
 ```
 
-    (10, 10, False)
+    (15, 10, False)
     End game! Reward:  -1.0
     You lost :(
     
-    (11, 5, False)
-    (21, 5, False)
+    (17, 6, False)
     End game! Reward:  -1
     You lost :(
     
-    (18, 1, False)
+    (13, 10, False)
+    (20, 10, False)
     End game! Reward:  0.0
     You lost :(
     
@@ -120,9 +120,9 @@ for i in range(3):
     print(generate_episode_from_limit_stochastic(env))
 ```
 
-    [((18, 2, False), 1, 0), ((19, 2, False), 0, 0.0)]
-    [((19, 7, False), 1, -1)]
-    [((4, 7, False), 1, 0), ((10, 7, False), 1, 0), ((20, 7, False), 0, -1.0)]
+    [((12, 3, False), 1, 0), ((19, 3, False), 0, 1.0)]
+    [((20, 8, False), 0, 1.0)]
+    [((14, 6, False), 1, 0), ((16, 6, False), 1, 0), ((18, 6, False), 1, -1)]
 
 
 Now, you are ready to write your own implementation of MC prediction.  Feel free to implement either first-visit or every-visit MC prediction; in the case of the Blackjack environment, the techniques are equivalent.
@@ -204,10 +204,45 @@ The algorithm returns as output:
 
 
 ```python
-def mc_control(env, num_episodes, alpha, gamma=1.0):
+def get_probs(Q_s, epsilon, nA):
+    """obtains action probabilities corresponding to epsilon-greedy policy"""
+    policy = np.ones(nA) * epsilon / nA
+    best_a = np.argmax(Q_s)
+    policy[best_a] = 1 - epsilon + (epsilon / nA)
+    return policy
+
+def generate_episode_from_Q(env, Q, epsilon, nA):
+    """generates an episode by following epsilon-greedy policy"""
+    episode = []
+    state = env.reset()
+    while True:
+        action = np.random.choice(np.arange(nA), p=get_probs(Q[state], epsilon, nA)) \
+                    if state in Q else env.action_space.sample()
+        next_state, reward, done, info = env.step(action)
+        episode.append((state, action, reward))
+        state = next_state
+        if done:
+            break
+    return episode
+    
+def update_Q(env, episode, Q, alpha, gamma):
+    """updates the action-value function using the latest episode"""
+    states, actions, rewards = zip(*episode)
+    # prepare for discounting
+    discounts = np.array([gamma**i for i in range(len(rewards)+1)])
+    for i, state in enumerate(states):
+        old_Q = Q[state][actions[i]] 
+        Q[state][actions[i]] = old_Q + alpha * (sum(rewards[i:] * discounts[:-(1+i)]) - old_Q)
+    return Q
+```
+
+
+```python
+def mc_control(env, num_episodes, alpha, gamma=1.0, eps_start=1.0, eps_decay=.99999, eps_min=0.05):
     nA = env.action_space.n
     # initialize empty dictionary of arrays
     Q = defaultdict(lambda: np.zeros(nA))
+    epsilon = eps_start
     # loop over episodes
     for i_episode in range(1, num_episodes+1):
         # monitor progress
@@ -215,8 +250,17 @@ def mc_control(env, num_episodes, alpha, gamma=1.0):
             print("\rEpisode {}/{}.".format(i_episode, num_episodes), end="")
             sys.stdout.flush()
         
-        ## TODO: complete the function
+        # update epsilon
+        epsilon = max(epsilon * eps_decay, eps_min)
         
+        # generate an episode by following epsilon-greedy policy
+        episode = generate_episode_from_Q(env, Q, epsilon, nA)
+        
+        # update the Q estimate using the episode
+        Q = update_Q(env, episode, Q, alpha, gamma)
+    
+    # determine the policy corresponding to the final action-value function estimate
+    policy = dict((k,np.argmax(v)) for k, v in Q.items())
     return policy, Q
 ```
 
@@ -225,8 +269,10 @@ Use the cell below to obtain the estimated optimal policy and action-value funct
 
 ```python
 # obtain the estimated optimal policy and action-value function
-policy, Q = mc_control(env, ?, ?)
+policy, Q = mc_control(env, 500000, 0.03)
 ```
+
+    Episode 500000/500000.
 
 Next, we plot the corresponding state-value function.
 
@@ -239,6 +285,10 @@ V = dict((k,np.max(v)) for k, v in Q.items())
 plot_blackjack_values(V)
 ```
 
+
+![png](output_22_0.png)
+
+
 Finally, we visualize the policy that is estimated to be optimal.
 
 
@@ -246,6 +296,10 @@ Finally, we visualize the policy that is estimated to be optimal.
 # plot the policy
 plot_policy(policy)
 ```
+
+
+![png](output_24_0.png)
+
 
 The **true** optimal policy $\pi_*$ can be found in Figure 5.2 of the [textbook](http://go.udacity.com/rl-textbook) (and appears below).  Compare your final estimate to the optimal policy - how close are you able to get?  If you are not happy with the performance of your algorithm, take the time to tweak the decay rate of $\epsilon$, change the value of $\alpha$, and/or run the algorithm for more episodes to attain better results.
 
