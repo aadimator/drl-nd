@@ -1,9 +1,9 @@
 
 # Deep Reinforcement Learning Nanodegree
-## P2 - Continuous Control Report
+## Project 3: Collaboration and Competition
 This report outlines my implementation for Udacity's Deep Reinforcement Learning Nanodegree's third project on the [Tennis](https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Learning-Environment-Examples.md#tennis) environment. 
 
-![Trained Agent](https://i.imgur.com/z901EXq.gifv)
+![Trained Agent](https://i.imgur.com/z901EXq.gif)
 
 In this environment, two agents control rackets to bounce a ball over a net. If an agent hits the ball over the net, it receives a reward of +0.1. If an agent lets a ball hit the ground or hits the ball out of bounds, it receives a reward of -0.01. Thus, the goal of each agent is to keep the ball in play.
 
